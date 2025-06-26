@@ -1,13 +1,14 @@
 {
   "name": "apppppen-workspace",
   "version": "1.0.0",
+  "main": "index.js",
   "private": true,
   "workspaces": [
     "soka-app"
   ],
   "devDependencies": {
-    "typescript": "~5.8.3",
-    "@types/react": "~19.0.10"
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
   },
   "scripts": {
     "android": "expo run:android",
@@ -16,6 +17,7 @@
   "dependencies": {
     "expo": "~53.0.9",
     "react": "19.0.0",
-    "react-native": "0.79.2"
+    "react-dom": "19.0.0",
+    "react-native": "^0.79.3"
   }
 }

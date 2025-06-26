@@ -1,0 +1,41 @@
+diff --git a/node_modules/ws/lib/stream.js b/node_modules/ws/lib/stream.js
+index 4c58c91..2c14414 100644
+--- a/node_modules/ws/lib/stream.js
++++ b/node_modules/ws/lib/stream.js
+@@ -2,7 +2,35 @@
+ 'use strict';
+ 
+ const WebSocket = require('./websocket');
+-const { Duplex } = require('stream');
++// React Native/Expo compatibility: Use mock Duplex for mobile platforms
++const { Duplex } = (() => {
++  try {
++    // Try to require stream for Node.js environments
++    return require('stream');
++  } catch (e) {
++    // Fallback mock for React Native/Expo
++    return {
++      Duplex: class MockDuplex {
++        constructor(options) {
++          this.destroyed = false;
++          this._readableState = { objectMode: false, endEmitted: false };
++          this._writableState = { finished: false };
++          this.listenerCount = () => 0;
++          this.emit = () => {};
++          this.removeListener = () => {};
++          this.destroy = () => { this.destroyed = true; };
++          this.push = () => true;
++          this.once = () => {};
++          this.on = () => {};
++        }
++        _destroy() {}
++        _final() {}
++        _read() {}
++        _write() {}
++      }
++    };
++  }
++})();
+ 
+ /**
+  * Emits the `'close'` event on a stream.

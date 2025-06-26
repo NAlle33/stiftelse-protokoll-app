@@ -1,4 +1,4 @@
-# Stiftelsekollen - Digital Protokollhantering
+y# Stiftelsekollen - Digital Protokollhantering
 
 ## Projektöversikt
 Stiftelsekollen är en mobilapp för stiftelser där styrelsemöten dokumenteras digitalt genom hela processen - från inspelning till AI-genererat protokoll, redigering och BankID-signering, med fokus på säkerhet och GDPR-efterlevnad.
