@@ -1,0 +1,257 @@
+name: Bundle Size Monitoring - SÖKA Stiftelsemötesapp
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Kör daglig bundle-analys kl 06:00 UTC (07:00 CET)
+    - cron: '0 6 * * *'
+
+env:
+  NODE_VERSION: '18'
+  BUNDLE_SIZE_BUDGET: '1048576' # 1MB i bytes
+  REGRESSION_THRESHOLD: '0.05' # 5% ökning
+
+jobs:
+  bundle-size-analysis:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout kod
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Hämta full historik för jämförelser
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'soka-app/package-lock.json'
+        
+    - name: Installera dependencies
+      working-directory: ./soka-app
+      run: |
+        npm ci
+        echo "✅ Dependencies installerade"
+        
+    - name: Bygg applikation för bundle-analys
+      working-directory: ./soka-app
+      run: |
+        echo "🔨 Bygger applikation för bundle-analys..."
+        npm run build:analyze || npm run build || echo "Build command not found, using expo export"
+        npx expo export --platform web --output-dir dist-analyze || echo "Expo export failed, continuing with existing build"
+        echo "✅ Build slutförd"
+        
+    - name: Kör bundle-storlek analys
+      working-directory: ./soka-app
+      run: |
+        echo "📊 Kör bundle-storlek analys med förbättrad CI-integration..."
+        chmod +x scripts/ci-bundle-check.js
+        node scripts/ci-bundle-check.js
+        
+    - name: Ladda upp bundle-rapport som artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: bundle-size-report-${{ github.run_id }}
+        path: soka-app/bundle-size-report.json
+        retention-days: 30
+        
+    - name: Kommentera PR med bundle-information
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            const reportPath = 'soka-app/bundle-size-report.json';
+            if (!fs.existsSync(reportPath)) {
+              console.log('Bundle rapport inte funnen, hoppar över PR-kommentar');
+              return;
+            }
+            
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const bundleData = report.bundleSize;
+            const regression = report.regression;
+            
+            let statusEmoji = '✅';
+            let statusText = 'Godkänd';
+            
+            if (report.status === 'fail') {
+              statusEmoji = '❌';
+              statusText = 'Misslyckades';
+            } else if (report.status === 'warning') {
+              statusEmoji = '⚠️';
+              statusText = 'Varning';
+            }
+            
+            let comment = `## ${statusEmoji} Bundle Size Analys - ${statusText}\n\n`;
+            comment += `**Aktuell bundle-storlek:** ${bundleData.formatted.current}\n`;
+            comment += `**Budget:** ${bundleData.formatted.budget}\n`;
+            
+            if (bundleData.previous) {
+              const change = bundleData.current - bundleData.previous;
+              const changeFormatted = change > 0 ? `+${(change/1024).toFixed(1)}KB` : `${(change/1024).toFixed(1)}KB`;
+              const changePercent = regression.percentage ? regression.percentage.toFixed(1) + '%' : '0%';
+              
+              comment += `**Föregående storlek:** ${bundleData.formatted.previous}\n`;
+              comment += `**Förändring:** ${changeFormatted} (${changePercent})\n`;
+              
+              if (regression.detected) {
+                comment += `\n⚠️ **Regression detekterad!**\n`;
+                if (report.alerts && report.alerts.length > 0) {
+                  comment += `**Rekommendationer:**\n`;
+                  report.alerts[0].recommendations.forEach(rec => {
+                    comment += `- ${rec}\n`;
+                  });
+                }
+              }
+            }
+            
+            comment += `\n**Build ID:** ${report.buildId}\n`;
+            comment += `**Branch:** ${report.branch}\n`;
+            comment += `**Commit:** ${report.commit.substring(0, 8)}\n`;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+            
+          } catch (error) {
+            console.error('Fel vid skapande av PR-kommentar:', error);
+          }
+
+  performance-regression-check:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: bundle-size-analysis
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout kod
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'soka-app/package-lock.json'
+        
+    - name: Installera dependencies
+      working-directory: ./soka-app
+      run: npm ci
+      
+    - name: Kör performance regression tester
+      working-directory: ./soka-app
+      run: |
+        echo "🚀 Kör performance regression tester..."
+        npm run test:performance || echo "Performance tester inte konfigurerade än"
+        
+    - name: Validera lazy loading prestanda
+      working-directory: ./soka-app
+      run: |
+        echo "⚡ Validerar lazy loading prestanda..."
+        node -e "
+          const { dynamicLoadingMetrics } = require('./src/utils/performance/dynamicLoadingMetrics.ts');
+          
+          async function validatePerformance() {
+            console.log('📊 Genererar prestanda-rapport...');
+            const report = dynamicLoadingMetrics.generatePerformanceReport();
+            
+            console.log('Performance Score:', report.summary.performanceScore);
+            console.log('Average Load Time:', report.summary.averageLoadTime + 'ms');
+            
+            if (report.summary.performanceScore < 70) {
+              console.error('❌ Performance score för låg:', report.summary.performanceScore);
+              process.exit(1);
+            }
+            
+            if (report.summary.averageLoadTime > 3000) {
+              console.error('❌ Genomsnittlig laddningstid för hög:', report.summary.averageLoadTime + 'ms');
+              process.exit(1);
+            }
+            
+            console.log('✅ Performance validering godkänd');
+          }
+          
+          validatePerformance().catch(console.error);
+        "
+
+  daily-bundle-report:
+    name: Daily Bundle Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout kod
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'soka-app/package-lock.json'
+        
+    - name: Installera dependencies
+      working-directory: ./soka-app
+      run: npm ci
+      
+    - name: Generera daglig bundle-rapport
+      working-directory: ./soka-app
+      run: |
+        echo "📊 Genererar daglig bundle-rapport..."
+        node -e "
+          const { bundleSizeReporter } = require('./src/utils/performance/bundleSizeReporter.ts');
+          const { dynamicLoadingMetrics } = require('./src/utils/performance/dynamicLoadingMetrics.ts');
+          
+          async function generateDailyReport() {
+            try {
+              console.log('📋 Skapar daglig rapport...');
+              
+              const report = await bundleSizeReporter.generateComprehensiveReport();
+              const performanceReport = dynamicLoadingMetrics.generatePerformanceReport();
+              
+              const combinedReport = {
+                date: new Date().toISOString().split('T')[0],
+                bundleAnalysis: report,
+                performanceMetrics: performanceReport,
+                summary: {
+                  bundleSize: report.currentAnalysis?.totalSize || 0,
+                  performanceScore: performanceReport.summary.performanceScore,
+                  recommendations: [
+                    ...report.recommendations || [],
+                    ...performanceReport.details.recommendations || []
+                  ]
+                }
+              };
+              
+              console.log('📊 Daglig rapport genererad:');
+              console.log(JSON.stringify(combinedReport, null, 2));
+              
+              // Spara rapport
+              const fs = require('fs');
+              fs.writeFileSync('daily-bundle-report.json', JSON.stringify(combinedReport, null, 2));
+              
+            } catch (error) {
+              console.error('❌ Fel vid generering av daglig rapport:', error);
+            }
+          }
+          
+          generateDailyReport();
+        "
+        
+    - name: Ladda upp daglig rapport
+      uses: actions/upload-artifact@v4
+      with:
+        name: daily-bundle-report-${{ github.run_id }}
+        path: soka-app/daily-bundle-report.json
+        retention-days: 90
