@@ -42,6 +42,16 @@ interface EnvironmentConfig {
     enableAnalytics: boolean;
     enableCrashReporting: boolean;
   };
+
+  // Service Migration Flags
+  serviceMigration: {
+    useMigratedUserService: boolean;
+    useMigratedVideoService: boolean;
+    useMigratedSignalingService: boolean;
+    enableMigrationLogging: boolean;
+    enableMigrationMetrics: boolean;
+    forceLegacyServices: boolean;
+  };
 }
 
 // Default configuration
@@ -68,6 +78,14 @@ const defaultConfig: EnvironmentConfig = {
     enableOfflineMode: true,
     enableAnalytics: false,
     enableCrashReporting: false,
+  },
+  serviceMigration: {
+    useMigratedUserService: false,
+    useMigratedVideoService: false,
+    useMigratedSignalingService: false,
+    enableMigrationLogging: true,
+    enableMigrationMetrics: true,
+    forceLegacyServices: false,
   },
 };
 
@@ -122,6 +140,14 @@ const loadEnvironmentConfig = (): EnvironmentConfig => {
       enableOfflineMode: getEnvVar('ENABLE_OFFLINE_MODE', 'true') === 'true',
       enableAnalytics: getEnvVar('ENABLE_ANALYTICS', 'false') === 'true',
       enableCrashReporting: getEnvVar('ENABLE_CRASH_REPORTING', 'false') === 'true',
+    },
+    serviceMigration: {
+      useMigratedUserService: getEnvVar('USE_MIGRATED_USER_SERVICE', 'false') === 'true',
+      useMigratedVideoService: getEnvVar('USE_MIGRATED_VIDEO_SERVICE', 'false') === 'true',
+      useMigratedSignalingService: getEnvVar('USE_MIGRATED_SIGNALING_SERVICE', 'false') === 'true',
+      enableMigrationLogging: getEnvVar('ENABLE_MIGRATION_LOGGING', 'true') === 'true',
+      enableMigrationMetrics: getEnvVar('ENABLE_MIGRATION_METRICS', 'true') === 'true',
+      forceLegacyServices: getEnvVar('FORCE_LEGACY_SERVICES', 'false') === 'true',
     },
   };
 

@@ -282,22 +282,6 @@ if (isDemoMode) {
     throw error;
   }
 }
-    storage: {
-      from: () => ({
-        upload: () => Promise.resolve({ data: null, error: null }),
-        download: () => Promise.resolve({ data: null, error: null }),
-        remove: () => Promise.resolve({ data: null, error: null }),
-      }),
-    },
-    realtime: {
-      channel: () => ({
-        on: () => ({}),
-        subscribe: () => Promise.resolve('ok'),
-        unsubscribe: () => Promise.resolve('ok'),
-      }),
-    },
-  } as any;
-}
 
 // Health check function
 export const checkSupabaseConnection = async (): Promise<boolean> => {

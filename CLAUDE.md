@@ -2,29 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# 🧠 CLAUDE.md – Claude Code Instructions (General Purpose)
+# 🧠 CLAUDE.md – Claude Code Instructions for SÖKA Stiftelseappen
 
 ## 🎯 Purpose
-You are Claude, an advanced AI strategist, code reviewer, and prompt writer. You collaborate with Augment Code in an iterative workflow where **you think and Augment acts**.
+You are Claude, an advanced AI assistant working on the SÖKA Stiftelseappen project. You provide strategic guidance, code review, and task management for this Swedish foundation board meeting management application.
 
 ## 🧠 Your Role
 - Break down complex goals into small, actionable tasks
-- Write clear task items in `tasklist.md` or other `.md` files that Augment can execute
-- Review the code written by Augment
-- Suggest improvements, refactoring, or new features
-- Keep the code DRY, secure, modular, and readable
-- Write prompts for Augment when needed
+- Write clear task items in `tasklist.md` or other `.md` files like `nyafel.md`
+- Review code quality and suggest improvements
+- Ensure code follows project standards: DRY, secure, modular, readable
+- Analyze test failures and provide specific solutions
+- Guide architecture decisions and performance optimizations
 
 ## 📁 Your Workspace
-- `tasklist.md` or other `.md` files contains code tasks that you manage, update, or create
-- Code files are automatically modified by Augment – you review and guide next steps
-- You can create additional `.md` files for documentation, feedback, or deeper analysis
+- `tasklist.md` - Main task tracking file
+- `nyafel.md` - Error tracking and resolution tasks (in `/soka-app/`)
+- `felsökning.md` - Swedish debugging documentation
+- `/soka-app/` - Main application codebase
+- Code files are in `/soka-app/src/` with proper module organization
 
 ## 📌 Guidelines
-- Use clear headings and bullet points in your prompts
-- Be specific in code improvement suggestions – include file names and precise changes
-- Focus on readability, reusability, error handling, and performance
-- Break large features into small units that can be built and tested independently
+- Use clear headings and bullet points in task descriptions
+- Include specific file paths and line numbers for code changes
+- Focus on test coverage (target: 93%+), performance, and error handling
+- Break large features into testable units
+- Prioritize critical errors that block development
+- Consider Swedish language requirements and GDPR compliance
 
 ## 🧭 Starting Point
 1. Read through `tasklist.md` or other `.md` files that i instruct you to read and review the project structure
@@ -32,11 +36,52 @@ You are Claude, an advanced AI strategist, code reviewer, and prompt writer. You
 3. Create the next set of tasks in `tasklist.md` or other `.md` files
 4. Review Augment’s code when changes appear
 
-## ✅ Goal
-- A clean and functional codebase
-- An iterative and automated AI development loop
-- A focused, evolving tasklist that drives progress
+## ✅ Goals
+- Achieve 93%+ test coverage across all modules
+- Resolve all critical (🔴) errors blocking development
+- Maintain performance targets (bundle size <820KB, load time <1.2s)
+- Ensure GDPR compliance and security best practices
+- Support Swedish language throughout the application
 
+## 🧪 Current Phase: Comprehensive Test Coverage Implementation (Phase 6)
+
+### Test Coverage Strategy
+Following the Phase 6 comprehensive test coverage guide with proven patterns:
+
+#### Priority Testing Areas:
+1. **CRITICAL PRIORITY (🚨)**
+   - Authentication Services (BankID, Criipto OAuth)
+   - Security Services (AES-256 encryption, GDPR compliance)
+   - Database Services (Supabase, RLS policies)
+   - AI Services (Azure Speech-to-text, OpenAI protocol generation)
+   - Video Meeting Services (WebRTC, LiveKit)
+
+2. **HIGH PRIORITY (🔥)**
+   - Meeting Management Screens
+   - Protocol Generation Flow
+   - Error Handling Utils
+   - Navigation Flow
+   - State Management Hooks
+
+3. **MEDIUM PRIORITY (📋)**
+   - UI Components
+   - Utility Functions
+   - Configuration Files
+   - Localization
+
+#### Test Implementation Patterns:
+- **Service Tests**: 26 tests per service (6 categories × 4-5 tests each)
+- **Component Tests**: 32 tests per component (8 categories × 4 tests each)
+- **Swedish Language Validation**: Mandatory in all tests
+- **Security & GDPR**: Integrated into all service tests
+- **Performance**: Monitored and validated
+
+#### Success Metrics:
+- Overall Coverage: 93%+
+- Services Coverage: 95%+
+- Components Coverage: 90%+
+- Utils Coverage: 95%+
+- Screens Coverage: 85%+
 
 ## Project Overview
 
@@ -125,11 +170,13 @@ EXPO_PUBLIC_AZURE_OPENAI_ENDPOINT=<your-azure-openai-endpoint>
 ```
 
 ### Testing Approach
-- Unit tests for all services and utilities
-- Integration tests for critical workflows
-- Security tests for authentication and encryption
-- E2E tests for complete user journeys
-- Target: 100% test coverage (currently achieved)
+- Unit tests for all services and utilities following proven patterns
+- Integration tests for critical workflows (BankID → Meeting → Protocol → Sign)
+- Security tests for authentication and encryption (mandatory GDPR compliance)
+- E2E tests for complete user journeys with Swedish language support
+- Service tests: 26 tests per service (6 categories with 4-5 tests each)
+- Component tests: 32 tests per component (8 categories with 4 tests each)
+- Target: 93%+ overall coverage with specific targets per module type
 
 ### Key Technical Decisions
 1. **TypeScript**: Strict mode enabled for type safety
@@ -145,8 +192,13 @@ EXPO_PUBLIC_AZURE_OPENAI_ENDPOINT=<your-azure-openai-endpoint>
 2. Add corresponding service in `/src/services/`
 3. Create reusable components in `/src/components/`
 4. Add navigation in `/src/navigation/`
-5. Write comprehensive tests
+5. Write comprehensive tests using Phase 6 patterns:
+   - Service tests: 26 tests (6 categories)
+   - Component tests: 32 tests (8 categories)
+   - Include Swedish language validation
+   - Add security and GDPR compliance tests
 6. Update security matrix if needed
+7. Verify coverage targets are met
 
 ### Working with AI Services
 - Speech-to-text uses Azure Speech Services with Swedish models

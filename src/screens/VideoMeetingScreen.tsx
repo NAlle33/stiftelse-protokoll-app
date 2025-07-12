@@ -21,7 +21,7 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { VideoMeetingRoom } from '../components/VideoMeeting/VideoMeetingRoom';
-import { videoMeetingService } from '../services/videoMeetingService';
+import { videoMeetingServiceMigrated as videoMeetingService } from '../services/VideoMeetingServiceMigrated';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { logger } from '../utils/logger';

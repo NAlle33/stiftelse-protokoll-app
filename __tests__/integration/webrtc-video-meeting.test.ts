@@ -9,9 +9,9 @@
  * - Svenska lokaliseringar
  */
 
-import { videoMeetingService } from '../../src/services/videoMeetingService';
-import { webrtcSignalingService } from '../../src/services/webrtcSignalingService';
-import { webrtcPeerService } from '../../src/services/webrtcPeerService';
+import { videoMeetingServiceMigrated as videoMeetingService } from '../../src/services/VideoMeetingServiceMigrated';
+import { webrtcSignalingServiceMigrated as webrtcSignalingService } from '../../src/services/WebRTCSignalingServiceMigrated';
+import { webrtcPeerServiceMigrated as webrtcPeerService } from '../../src/services/WebRTCPeerServiceMigrated';
 import { supabase } from '../../src/config/supabase';
 
 // Mock WebRTC components

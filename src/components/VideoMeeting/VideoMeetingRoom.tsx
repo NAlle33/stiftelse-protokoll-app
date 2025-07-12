@@ -22,9 +22,9 @@ import {
 } from 'react-native';
 import { RTCView } from '@livekit/react-native-webrtc';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { videoMeetingService, VideoParticipant } from '../../services/videoMeetingService';
-import { webrtcPeerService, RemotePeer } from '../../services/webrtcPeerService';
-import { webrtcSignalingService } from '../../services/webrtcSignalingService';
+import { videoMeetingServiceMigrated as videoMeetingService, VideoParticipant } from '../../services/VideoMeetingServiceMigrated';
+import { RemotePeer } from '../../services/WebRTCPeerServiceMigrated';
+import { ServiceFactory } from '../../services/ServiceFactory';
 import { logger } from '../../utils/logger';
 import { colors } from '../../theme/colors';
 import { VideoControls } from './VideoControls';
@@ -64,6 +64,9 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
   const navigation = useNavigation();
   const route = useRoute();
 
+  // Service state
+  const [webrtcPeerService, setWebrtcPeerService] = useState<any>(null);
+
   const [state, setState] = useState<MeetingState>({
     isConnecting: true,
     isConnected: false,
@@ -83,14 +86,21 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
    */
   const initializeVideoMeeting = useCallback(async (consentGiven: boolean) => {
     try {
-      setState(prev => ({ 
-        ...prev, 
-        isConnecting: true, 
+      setState(prev => ({
+        ...prev,
+        isConnecting: true,
         showConsentDialog: false,
-        hasError: false 
+        hasError: false
       }));
 
       logger.info('Initialiserar videomöte', { roomId, meetingId, consentGiven });
+
+      // Initialisera WebRTC peer service via ServiceFactory
+      if (!webrtcPeerService) {
+        const serviceResult = await ServiceFactory.getWebRTCPeerService();
+        setWebrtcPeerService(serviceResult.service);
+        logger.info(`WebRTC Peer Service laddad (${serviceResult.isMigrated ? 'Migrerad' : 'Legacy'}) - ${serviceResult.loadTime}ms`);
+      }
 
       // Validera åtkomst till mötet
       const hasAccess = await videoMeetingService.validateMeetingAccess(roomId);
@@ -100,7 +110,7 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
 
       // Gå med i mötet
       const participant = await videoMeetingService.joinMeeting(roomId, consentGiven);
-      
+
       // Hämta användar-ID för WebRTC
       const { data: { user } } = await videoMeetingService['supabase'].auth.getUser();
       if (!user) {
@@ -108,7 +118,8 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
       }
 
       // Initialisera WebRTC peer service
-      await webrtcPeerService.initialize(roomId, user.id, {
+      const currentService = webrtcPeerService || (await ServiceFactory.getWebRTCPeerService()).service;
+      await currentService.initialize(roomId, user.id, {
         onLocalStream: (stream) => {
           setState(prev => ({
             ...prev,
@@ -119,7 +130,7 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
           logger.info('Remote stream mottagen', { userId });
           setState(prev => ({
             ...prev,
-            remotePeers: webrtcPeerService.getRemotePeers()
+            remotePeers: currentService.getRemotePeers()
           }));
         },
         onConnectionStateChange: (state, userId) => {
@@ -184,6 +195,8 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
    * Stänger av/på mikrofon
    */
   const toggleAudio = useCallback(async () => {
+    if (!webrtcPeerService) return;
+
     try {
       const newState = !state.isAudioEnabled;
       await webrtcPeerService.toggleAudio(newState);
@@ -192,12 +205,14 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
       logger.error('Fel vid toggle av audio', { error });
       Alert.alert('Fel', 'Kunde inte ändra mikrofonsstatus');
     }
-  }, [state.isAudioEnabled]);
+  }, [state.isAudioEnabled, webrtcPeerService]);
 
   /**
    * Stänger av/på kamera
    */
   const toggleVideo = useCallback(async () => {
+    if (!webrtcPeerService) return;
+
     try {
       const newState = !state.isVideoEnabled;
       await webrtcPeerService.toggleVideo(newState);
@@ -206,7 +221,7 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
       logger.error('Fel vid toggle av video', { error });
       Alert.alert('Fel', 'Kunde inte ändra kamerastatus');
     }
-  }, [state.isVideoEnabled]);
+  }, [state.isVideoEnabled, webrtcPeerService]);
 
   /**
    * Lämnar videomötet
@@ -224,7 +239,9 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
             onPress: async () => {
               try {
                 await videoMeetingService.leaveMeeting(roomId);
-                await webrtcPeerService.cleanup();
+                if (webrtcPeerService) {
+                  await webrtcPeerService.cleanup();
+                }
                 onMeetingEnd?.();
                 navigation.goBack();
               } catch (error) {
@@ -257,7 +274,9 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
           onPress: async () => {
             try {
               await videoMeetingService.endMeeting(roomId);
-              await webrtcPeerService.cleanup();
+              if (webrtcPeerService) {
+                await webrtcPeerService.cleanup();
+              }
               onMeetingEnd?.();
               navigation.goBack();
             } catch (error) {
@@ -275,11 +294,13 @@ export const VideoMeetingRoom: React.FC<VideoMeetingRoomProps> = ({
    */
   useEffect(() => {
     return () => {
-      webrtcPeerService.cleanup().catch(error => {
-        logger.error('Fel vid cleanup av WebRTC', { error });
-      });
+      if (webrtcPeerService) {
+        webrtcPeerService.cleanup().catch(error => {
+          logger.error('Fel vid cleanup av WebRTC', { error });
+        });
+      }
     };
-  }, []);
+  }, [webrtcPeerService]);
 
   /**
    * Hantera hårdvaru-tillbaka-knapp på Android

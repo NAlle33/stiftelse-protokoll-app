@@ -18,7 +18,7 @@ import {
   ViewStyle
 } from 'react-native';
 import { RTCView } from '@livekit/react-native-webrtc';
-import { RemotePeer } from '../../services/webrtcPeerService';
+import { RemotePeer } from '../../services/WebRTCPeerServiceMigrated';
 import { VideoParticipant } from '../../services/videoMeetingService';
 import { SafeIonicons } from '../ui/SafeIonicons';
 import { colors } from '../../theme/colors';

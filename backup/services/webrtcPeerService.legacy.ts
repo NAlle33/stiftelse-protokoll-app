@@ -24,7 +24,8 @@ import {
   registerGlobals
 } from '@livekit/react-native-webrtc';
 import { Platform } from 'react-native';
-import { webrtcSignalingService, RTCSignal } from './webrtcSignalingService';
+import { ServiceFactory } from './ServiceFactory';
+import { RTCSignal } from './webrtcSignalingService';
 import { logger } from '../utils/logger';
 
 // Registrera WebRTC globals för kompatibilitet
@@ -66,6 +67,28 @@ class WebRTCPeerService {
   private roomId: string | null = null;
   private currentUserId: string | null = null;
   private isInitialized: boolean = false;
+  private signalingService: any = null; // Cache för WebRTC signaling service
+
+  /**
+   * Hämtar WebRTC signaling service via ServiceFactory
+   * Cachar instansen för prestanda
+   */
+  private async getSignalingService(): Promise<any> {
+    if (!this.signalingService) {
+      try {
+        const result = await ServiceFactory.getWebRTCSignalingService();
+        this.signalingService = result.service;
+        logger.debug('WebRTC signaling service laddad via ServiceFactory', {
+          isMigrated: result.isMigrated,
+          loadTime: result.loadTime
+        });
+      } catch (error) {
+        logger.error('Fel vid laddning av WebRTC signaling service', { error });
+        throw new Error(`Kunde inte ladda WebRTC signaling service: ${error.message}`);
+      }
+    }
+    return this.signalingService;
+  }
 
   /**
    * Säker WebRTC konfiguration för svenska användare
@@ -131,8 +154,9 @@ class WebRTCPeerService {
       // Hämta lokal media stream
       await this.setupLocalStream();
 
-      // Konfigurera signaling callbacks
-      webrtcSignalingService.setCallbacks({
+      // Konfigurera signaling callbacks via ServiceFactory
+      const signalingService = await this.getSignalingService();
+      signalingService.setCallbacks({
         onSignalReceived: this.handleSignalingMessage.bind(this),
         onParticipantJoined: this.handleParticipantJoined.bind(this),
         onParticipantLeft: this.handleParticipantLeft.bind(this),
@@ -235,8 +259,9 @@ class WebRTCPeerService {
       peerConnection.addEventListener('icecandidate', async (event) => {
         if (event.candidate) {
           logger.debug('ICE candidate genererad', { userId });
-          
-          await webrtcSignalingService.sendSignal(this.roomId!, {
+
+          const signalingService = await this.getSignalingService();
+          await signalingService.sendSignal(this.roomId!, {
             fromUserId: this.currentUserId!,
             toUserId: userId,
             signalType: 'ice-candidate',
@@ -287,7 +312,8 @@ class WebRTCPeerService {
 
       await peerConnection.setLocalDescription(offer);
 
-      await webrtcSignalingService.sendSignal(this.roomId!, {
+      const signalingService = await this.getSignalingService();
+      await signalingService.sendSignal(this.roomId!, {
         fromUserId: this.currentUserId!,
         toUserId: userId,
         signalType: 'offer',
@@ -313,7 +339,8 @@ class WebRTCPeerService {
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
-      await webrtcSignalingService.sendSignal(this.roomId!, {
+      const signalingService = await this.getSignalingService();
+      await signalingService.sendSignal(this.roomId!, {
         fromUserId: this.currentUserId!,
         toUserId: userId,
         signalType: 'answer',
@@ -490,8 +517,9 @@ class WebRTCPeerService {
           track.enabled = enabled;
         });
 
-        // Uppdatera presence
-        await webrtcSignalingService.updatePresence(this.roomId!, {
+        // Uppdatera presence via ServiceFactory
+        const signalingService = await this.getSignalingService();
+        await signalingService.updatePresence(this.roomId!, {
           audioEnabled: enabled
         });
 
@@ -514,8 +542,9 @@ class WebRTCPeerService {
           track.enabled = enabled;
         });
 
-        // Uppdatera presence
-        await webrtcSignalingService.updatePresence(this.roomId!, {
+        // Uppdatera presence via ServiceFactory
+        const signalingService = await this.getSignalingService();
+        await signalingService.updatePresence(this.roomId!, {
           videoEnabled: enabled
         });
 

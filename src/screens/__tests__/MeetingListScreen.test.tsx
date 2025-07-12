@@ -2,7 +2,15 @@ import React from 'react';
 import { create, act } from 'react-test-renderer';
 import { Alert } from 'react-native';
 import MeetingListScreen from '../MeetingListScreen';
-import { testUtils } from '../../__tests__/utils/testUtils';
+import { setupTestEnvironment, createMockMeeting, createMockUser } from '../../__tests__/utils/testUtils';
+
+// Setup centralized service mocks with Swedish localization and GDPR compliance
+const {
+  mockMeetingService,
+  mockSearchService,
+  errorScenarios,
+  verifyGDPRCompliance
+} = setupTestEnvironment();
 
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({
@@ -29,18 +37,13 @@ jest.mock('../../hooks/usePermissions', () => ({
   })),
 }));
 
+// Use centralized service mocks instead of individual mocks
 jest.mock('../../services/meetingService', () => ({
-  meetingService: {
-    getUserMeetings: jest.fn(),
-    progressMeetingStatus: jest.fn(),
-    deleteMeeting: jest.fn(),
-  },
+  meetingService: mockMeetingService,
 }));
 
 jest.mock('../../services/searchService', () => ({
-  searchService: {
-    searchMeetings: jest.fn(),
-  },
+  searchService: mockSearchService,
 }));
 
 // Mock Alert
@@ -57,48 +60,34 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
 
-// Setup test utilities
-beforeEach(() => {
-  testUtils.setupSupabaseMock();
-  jest.clearAllMocks();
-});
-
 // Helper function to create component with proper mocking
 const createComponent = (props = {}) => {
   return create(React.createElement(MeetingListScreen, props));
 };
 
-// Mock meeting data
+// Mock meeting data using centralized utilities with GDPR compliance
 const mockMeetings = [
-  {
+  createMockMeeting({
     id: 'meeting-1',
     title: 'Styrelsemöte Januari',
-    meeting_date: '2024-01-15T10:00:00Z',
-    meeting_type: 'physical',
-    status: 'ongoing',
-    organization_id: 'org-1',
-    created_by: 'user-1',
-    created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-01T00:00:00Z',
-  },
-  {
+    date: '2024-01-15T10:00:00Z',
+    meeting_type: 'fysiskt',
+    status: 'pågående'
+  }),
+  createMockMeeting({
     id: 'meeting-2',
     title: 'Digitalt Årsmöte',
-    meeting_date: '2024-02-20T14:00:00Z',
-    meeting_type: 'digital',
-    status: 'completed',
-    organization_id: 'org-1',
-    created_by: 'user-1',
-    created_at: '2024-02-01T00:00:00Z',
-    updated_at: '2024-02-01T00:00:00Z',
-  },
+    date: '2024-02-20T14:00:00Z',
+    meeting_type: 'digitalt',
+    status: 'avslutat'
+  })
 ];
 
 describe('MeetingListScreen Component', () => {
   describe('Component Rendering', () => {
     it('should render main container with AppLayout', async () => {
-      const { meetingService } = require('../../services/meetingService');
-      meetingService.getUserMeetings.mockResolvedValue(mockMeetings);
+      // Use centralized mock with GDPR-compliant data
+      mockMeetingService.getUserMeetings.mockResolvedValue(mockMeetings);
 
       let component: any;
       await act(async () => {
@@ -108,11 +97,14 @@ describe('MeetingListScreen Component', () => {
       const appLayout = component.root.findByProps({ testID: 'app-layout' });
       expect(appLayout).toBeDefined();
       expect(appLayout.props.title).toBe('Mina Möten');
+
+      // Verify GDPR compliance in returned data
+      expect(verifyGDPRCompliance(mockMeetings[0])).toBe(true);
     });
 
     it('should render search input field', async () => {
-      const { meetingService } = require('../../services/meetingService');
-      meetingService.getUserMeetings.mockResolvedValue(mockMeetings);
+      // Use centralized mock
+      mockMeetingService.getUserMeetings.mockResolvedValue(mockMeetings);
 
       let component: any;
       await act(async () => {
@@ -125,8 +117,8 @@ describe('MeetingListScreen Component', () => {
     });
 
     it('should render loading state initially', async () => {
-      const { meetingService } = require('../../services/meetingService');
-      meetingService.getUserMeetings.mockImplementation(() => new Promise(() => {})); // Never resolves
+      // Use centralized mock with never-resolving promise
+      mockMeetingService.getUserMeetings.mockImplementation(() => new Promise(() => {}));
 
       let component: any;
       await act(async () => {
@@ -138,8 +130,8 @@ describe('MeetingListScreen Component', () => {
     });
 
     it('should render error state when fetch fails', async () => {
-      const { meetingService } = require('../../services/meetingService');
-      meetingService.getUserMeetings.mockRejectedValue(new Error('Network error'));
+      // Use centralized error scenario with Swedish error message
+      mockMeetingService.getUserMeetings.mockRejectedValue(errorScenarios.networkError);
 
       let component: any;
       await act(async () => {
